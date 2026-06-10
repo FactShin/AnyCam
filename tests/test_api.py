@@ -80,3 +80,17 @@ def test_delete_media(client):
 def test_pages_render(client):
     for path in ("/", "/gallery", "/events"):
         assert client.get(path).status_code == 200
+
+
+def test_cameras_come_online_without_stream_request(client):
+    """Regression: workers must start eagerly. The dashboard only streams
+    cameras that report online, so if workers waited for a stream request the
+    UI would deadlock with every camera stuck 'offline'."""
+    deadline = time.time() + 5.0
+    status = "offline"
+    while time.time() < deadline:
+        status = client.get("/api/cameras").json()[0]["status"]
+        if status == "online":
+            break
+        time.sleep(0.1)
+    assert status == "online"

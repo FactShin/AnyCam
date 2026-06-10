@@ -32,10 +32,22 @@ def run(
     no_tailscale: bool = typer.Option(False, "--no-tailscale", help="Do not run tailscale serve."),
 ) -> None:
     """Start the AnyCam web server."""
+    import sys
+
     import uvicorn
 
-    setup_logging()
     paths.ensure_dirs()
+    if sys.stdout is None or sys.stderr is None:
+        # Windowless service (pythonw on Windows): stdout/stderr don't exist,
+        # which breaks uvicorn's logging and hides crashes. Send both to a log
+        # file so the service runs reliably and failures are inspectable.
+        log_file = open(  # noqa: SIM115 - lives for the process lifetime
+            paths.data_dir() / "anycam.log", "a", buffering=1, encoding="utf-8"
+        )
+        sys.stdout = sys.stdout or log_file
+        sys.stderr = sys.stderr or log_file
+
+    setup_logging()
     if not paths.config_file().exists():
         AppConfig().save()  # write an editable default config on first run
     config = AppConfig.load()

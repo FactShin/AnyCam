@@ -9,6 +9,7 @@ from request threads.
 from __future__ import annotations
 
 import queue
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -24,7 +25,10 @@ from anycam.logging_setup import get_logger
 log = get_logger(__name__)
 
 _MAX_CONSECUTIVE_FAILURES = 10
-_RECONNECT_BACKOFF_MAX = 10.0
+# Cap retry interval at 60s: with eager-started workers, a permanently failing
+# camera (unplugged USB, an out-of-reach iPhone Continuity Camera, denied
+# permission) would otherwise hammer reopen attempts forever.
+_RECONNECT_BACKOFF_MAX = 60.0
 
 SourceFactory = Callable[[CameraDescriptor, CameraProperties], CameraSource]
 
@@ -118,7 +122,13 @@ class CameraWorker:
             source = self._source_factory(self.descriptor, self.state.properties)
             if not source.open():
                 self.state.status = CameraStatus.OFFLINE
-                self.state.last_error = "failed to open device"
+                if sys.platform == "darwin":
+                    self.state.last_error = (
+                        "can't open device — if this persists, grant camera access in "
+                        "System Settings › Privacy & Security › Camera"
+                    )
+                else:
+                    self.state.last_error = "can't open device (in use, unplugged, or denied)"
                 source.close()
                 if self._stop.wait(backoff):
                     break

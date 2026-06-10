@@ -20,6 +20,8 @@ export interface CameraInfo {
   motion_enabled: boolean;
   properties: Record<string, number | null>;
   transform: Transform;
+  // Why the camera is offline/degraded, if the server knows (e.g. permissions).
+  last_error: string | null;
   // Multi-host: which node owns this camera, and the prefix to reach its
   // stream/controls through the node you're viewing ("" = local).
   host: string;

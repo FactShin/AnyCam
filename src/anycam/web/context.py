@@ -41,6 +41,9 @@ class AppContext:
 
     def startup(self) -> None:
         self.manager.discover()
+        # Eager-start workers so status reflects reality from the first poll
+        # (the UI only streams cameras that report online).
+        self.manager.start_all()
         if self.config.tailscale.auto_serve and self.tailscale.status().running:
             https_port = self.config.tailscale.serve_port
             self.served = self.tailscale.serve(self.config.server.port, https_port)

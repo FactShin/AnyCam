@@ -186,6 +186,11 @@ output is committed to `src/anycam/web/spa/` and ships in the wheel, so end user
 never need Node. To change the UI: `cd web-ui && npm install && npm run build`,
 then commit both the source and the regenerated `src/anycam/web/spa/`.
 
+**Releases:** bump `__version__` in `src/anycam/__init__.py` with every change
+merged to `main`. The version is shown by `anycam version`, `anycam status`,
+`/api/system`, and the dashboard Settings page — it's how you confirm a node is
+actually running the build you think it is.
+
 ## License
 
 MIT

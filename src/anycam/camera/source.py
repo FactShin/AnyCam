@@ -77,6 +77,12 @@ class OpenCVCameraSource(CameraSource):
         import cv2
 
         self._cap = cv2.VideoCapture(self._device_arg(), self._api_preference())
+        if not self._cap.isOpened() and sys.platform == "win32":
+            # Some Windows drivers/OpenCV builds reject DirectShow by-index
+            # capture; Media Foundation usually works for the same index.
+            self._cap.release()
+            log.info("DSHOW open failed for %s; retrying with MSMF", self.descriptor.id)
+            self._cap = cv2.VideoCapture(self._device_arg(), cv2.CAP_MSMF)
         if not self._cap.isOpened():
             log.warning("Failed to open camera %s", self.descriptor.id)
             return False
