@@ -26,12 +26,54 @@ def _linux_name(video_path: str) -> str:
         return node
 
 
+# V4L2 VIDIOC_QUERYCAP = _IOR('V', 0, struct v4l2_capability) — 104-byte struct.
+_VIDIOC_QUERYCAP = 0x80685600
+_V4L2_CAP_VIDEO_CAPTURE = 0x00000001
+_V4L2_CAP_DEVICE_CAPS = 0x80000000
+
+
+def _caps_has_capture(capabilities: int, device_caps: int) -> bool:
+    # device_caps describes *this* node when the DEVICE_CAPS bit is set in the
+    # device-wide capabilities; otherwise fall back to the device-wide field.
+    effective = device_caps if (capabilities & _V4L2_CAP_DEVICE_CAPS) else capabilities
+    return bool(effective & _V4L2_CAP_VIDEO_CAPTURE)
+
+
+def _v4l2_is_capture(path: str) -> bool:
+    """True if the V4L2 node can actually capture video.
+
+    A Raspberry Pi exposes many /dev/video* nodes (codec/ISP/metadata, e.g.
+    video10-23) that are NOT webcams. Opening them as cameras causes select()
+    timeouts and phantom offline cameras, so we query V4L2 capabilities and keep
+    only VIDEO_CAPTURE nodes. A device that's busy (already held by our own
+    worker) is assumed to be a real capture device.
+    """
+    import errno
+    import fcntl
+    import os
+
+    fd = -1
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+        buf = bytearray(104)
+        fcntl.ioctl(fd, _VIDIOC_QUERYCAP, buf, True)
+        capabilities = int.from_bytes(buf[84:88], "little")
+        device_caps = int.from_bytes(buf[88:92], "little")
+        return _caps_has_capture(capabilities, device_caps)
+    except OSError as exc:
+        return exc.errno == errno.EBUSY  # busy real device -> keep it
+    except Exception:
+        return False
+    finally:
+        if fd >= 0:
+            os.close(fd)
+
+
 def _enumerate_linux() -> list[CameraDescriptor]:
     descriptors: list[CameraDescriptor] = []
     for path in sorted(glob.glob("/dev/video*")):
-        # Probe capability cheaply: a capture node must be openable. We avoid
-        # opening here (slow, exclusive) and instead rely on sysfs presence;
-        # non-capture nodes get filtered when a worker fails to start.
+        if not _v4l2_is_capture(path):
+            continue  # skip codec/ISP/metadata nodes (common on Raspberry Pi)
         descriptors.append(
             CameraDescriptor(id=path, name=_linux_name(path), backend="v4l2")
         )

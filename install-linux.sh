@@ -121,8 +121,13 @@ ensure_tailscale() {
         warn "Tailscale installed but not logged in. Run:  sudo tailscale up"
         return 0
     fi
+    # `tailscale serve` needs operator rights or root; grant the current user
+    # operator so it works without sudo (avoids "Access denied").
+    sudo tailscale set --operator="$USER" 2>/dev/null \
+        || warn "If serve is denied, run: sudo tailscale set --operator=$USER"
     log "Exposing AnyCam over Tailscale"
-    "$ANYCAM_BIN" tailscale serve || warn "tailscale serve failed; the UI is still available locally."
+    "$ANYCAM_BIN" tailscale serve \
+        || warn "tailscale serve failed (try: sudo tailscale set --operator=$USER). UI still works locally."
 }
 
 log "Installing AnyCam on Linux (${DISTRO:-unknown}, ref=${REF}, port=${PORT})"
