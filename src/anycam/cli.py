@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 
 import typer
 from rich.console import Console
@@ -32,8 +33,6 @@ def run(
     no_tailscale: bool = typer.Option(False, "--no-tailscale", help="Do not run tailscale serve."),
 ) -> None:
     """Start the AnyCam web server."""
-    import sys
-
     import uvicorn
 
     paths.ensure_dirs()
@@ -60,6 +59,23 @@ def run(
         config.server.port = int(env_port)
     if no_tailscale:
         config.tailscale.auto_serve = False
+
+    # Friendly guard: if the port is taken, AnyCam is probably already running
+    # as the background service (don't dump a bind traceback).
+    import socket
+
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        probe.bind((config.server.host, config.server.port))
+    except OSError:
+        typer.echo(
+            f"Port {config.server.port} is already in use — AnyCam is likely already "
+            f"running (the background service). Check it with `anycam doctor`, or use "
+            f"a different port: `anycam run --port <N>`."
+        )
+        raise typer.Exit(code=1) from None
+    finally:
+        probe.close()
 
     from anycam.web.app import create_app
 
@@ -139,8 +155,6 @@ def doctor() -> None:
 
     def bad(label: str, detail: str = "") -> None:
         console.print(f"[red]✗[/red] {label}" + (f"  [dim]{detail}[/dim]" if detail else ""))
-
-    import sys
 
     pyv = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     (ok if sys.version_info[:2] >= (3, 10) else bad)("Python 3.10+", pyv)
@@ -258,6 +272,13 @@ def tailscale_serve(
         typer.echo(f"Serving on {ts.access_url(config.server.port, True, serve_port)}")
     else:
         typer.echo("Failed to start tailscale serve.")
+        if sys.platform != "win32":
+            import getpass
+
+            typer.echo(
+                f"  If it says 'Access denied', grant operator rights: "
+                f"sudo tailscale set --operator={getpass.getuser()}"
+            )
         raise typer.Exit(code=1)
 
 
