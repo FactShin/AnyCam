@@ -97,6 +97,19 @@ class CameraManager:
                 cam.worker.start()
             return cam.worker.buffer
 
+    def start_all(self) -> None:
+        """Start a capture worker for every known camera.
+
+        Workers must run for /api/cameras to report real status. Without this,
+        the dashboard deadlocks: the UI won't request a stream from an
+        "offline" camera, but only a stream request would start the worker
+        that brings it online.
+        """
+        with self._lock:
+            ids = list(self._cameras)
+        for camera_id in ids:
+            self.get_buffer(camera_id)
+
     def status(self, camera_id: str) -> CameraStatus:
         cam = self.get(camera_id)
         if cam is None or cam.worker is None:

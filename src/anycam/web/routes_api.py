@@ -43,6 +43,7 @@ def _camera_info(ctx: AppContext, cam: ManagedCamera) -> CameraInfo:
             flip_h=cam.transform.flip_h,
             flip_v=cam.transform.flip_v,
         ),
+        last_error=worker.state.last_error if worker else None,
         host=ctx.local_host,
         proxy_prefix="",
     )
@@ -74,6 +75,7 @@ async def refresh_cameras(
     ctx: AppContext = Depends(get_context),
 ) -> list[CameraInfo]:
     ctx.manager.discover()
+    ctx.manager.start_all()
     if scope != "local":
         await ctx.cluster.refresh(force=True)
     return await _aggregate_cameras(ctx, scope)

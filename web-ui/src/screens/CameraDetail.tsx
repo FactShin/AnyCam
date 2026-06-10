@@ -159,6 +159,9 @@ export function CameraDetail() {
           <div className="detail-id">
             <h1 className="detail-name">{cam.name}</h1>
             <span className="detail-meta mono">{cam.host} · {cam.id} · {cam.backend}</span>
+            {cam.status === "offline" && cam.last_error && (
+              <span className="detail-error">{cam.last_error}</span>
+            )}
           </div>
         </div>
 

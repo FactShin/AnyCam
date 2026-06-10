@@ -60,8 +60,8 @@ if (-not $py) {
 Info ("Using Python: " + $py.Exe + " " + ($py.Args -join " "))
 
 # --- create venv + install AnyCam from the GitHub zip (no Git needed) -------
-# Wipe any existing venv so we always install the latest build (the version is
-# 0.1.0, so pip would otherwise treat the old copy as "already satisfied").
+# Wipe any existing venv so upgrades always take effect, even when pip would
+# consider the installed version "already satisfied".
 if (Test-Path $VenvDir) { Info "Removing old virtualenv"; Remove-Item -Recurse -Force $VenvDir }
 Info "Creating virtualenv at $VenvDir"
 New-Item -ItemType Directory -Force -Path (Split-Path $VenvDir) | Out-Null
@@ -79,8 +79,10 @@ if ($LASTEXITCODE -ne 0) { Fail "pip install failed." }
 
 # Put `anycam` on PATH for this user (takes effect in new terminals).
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+if (-not $userPath) { $userPath = "" }
 if (($userPath -split ';') -notcontains $Scripts) {
-  [Environment]::SetEnvironmentVariable("Path", ($userPath.TrimEnd(';') + ";" + $Scripts), "User")
+  $newPath = if ($userPath) { $userPath.TrimEnd(';') + ";" + $Scripts } else { $Scripts }
+  [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
   Info "Added AnyCam to your PATH — open a NEW terminal to use the 'anycam' command."
 }
 

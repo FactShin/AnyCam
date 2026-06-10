@@ -39,6 +39,8 @@ class CameraInfo(BaseModel):
     motion_enabled: bool
     properties: dict
     transform: TransformModel
+    # Why the camera is offline/degraded (e.g. "failed to open device"), if known.
+    last_error: str | None = None
     # Multi-host: which node owns this camera, and the prefix to reach its
     # stream/controls through this node ("" = local, "/proxy/<key>" = remote).
     host: str = ""

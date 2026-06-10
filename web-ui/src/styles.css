@@ -492,3 +492,6 @@ input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 
 @keyframes conn-pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
 @media (prefers-reduced-motion: reduce) { .conn-dot { animation: none; } }
 .updating { color: var(--muted); font-style: italic; }
+
+/* offline reason on the camera detail header */
+.detail-error { display: block; margin-top: 2px; font-size: .78rem; color: var(--err); }
