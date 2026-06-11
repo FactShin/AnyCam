@@ -82,6 +82,7 @@ export interface SystemInfo {
   access_url: string;
   local_url: string;
   media_bytes: number;
+  hidden_count: number;
 }
 
 // Per-tab view params for the MJPEG stream (local to each browser).

@@ -38,6 +38,10 @@ def create_app(config: AppConfig | None = None, context: AppContext | None = Non
     app.state.ctx = ctx
     app.state.templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
+    from anycam.web.security import SecurityMiddleware
+
+    app.add_middleware(SecurityMiddleware)
+
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
     # Import here to avoid circular imports at module load.

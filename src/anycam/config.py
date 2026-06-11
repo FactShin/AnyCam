@@ -71,6 +71,13 @@ class PeersConfig:
 
 
 @dataclass
+class CamerasConfig:
+    # Camera ids the user has deleted/forgotten; discovery skips these so
+    # phantom devices (e.g. Raspberry Pi codec/ISP nodes) stay hidden.
+    hidden: list[str] = field(default_factory=list)
+
+
+@dataclass
 class AppConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
     stream: StreamConfig = field(default_factory=StreamConfig)
@@ -78,6 +85,7 @@ class AppConfig:
     retention: RetentionConfig = field(default_factory=RetentionConfig)
     tailscale: TailscaleConfig = field(default_factory=TailscaleConfig)
     peers: PeersConfig = field(default_factory=PeersConfig)
+    cameras: CamerasConfig = field(default_factory=CamerasConfig)
 
     @classmethod
     def load(cls, path: Path | None = None) -> AppConfig:
@@ -97,6 +105,7 @@ class AppConfig:
             retention=RetentionConfig(**raw.get("retention", {})),
             tailscale=TailscaleConfig(**raw.get("tailscale", {})),
             peers=PeersConfig(**raw.get("peers", {})),
+            cameras=CamerasConfig(**raw.get("cameras", {})),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -107,6 +116,7 @@ class AppConfig:
             "retention": asdict(self.retention),
             "tailscale": asdict(self.tailscale),
             "peers": asdict(self.peers),
+            "cameras": asdict(self.cameras),
         }
 
     def save(self, path: Path | None = None) -> None:

@@ -87,9 +87,10 @@ class ClusterService:
     # -- lifecycle ---------------------------------------------------------
     def client(self) -> httpx.AsyncClient:
         if self._client is None:
-            # read=None: MJPEG proxy streams are open-ended.
+            # read=None: MJPEG proxy streams are open-ended. follow_redirects is
+            # off so a peer can't redirect the proxy to an unintended host (SSRF).
             self._client = httpx.AsyncClient(
-                timeout=httpx.Timeout(5.0, read=None), follow_redirects=True
+                timeout=httpx.Timeout(5.0, read=None), follow_redirects=False
             )
         return self._client
 

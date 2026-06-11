@@ -42,6 +42,10 @@ export function useEvents(params: { camera_id?: string; limit?: number }) {
   });
 }
 
+export function useUpdate() {
+  return useQuery({ queryKey: ["update"], queryFn: api.getUpdate, refetchInterval: 3600_000 });
+}
+
 export function useRefreshCameras() {
   const qc = useQueryClient();
   return useMutation({
@@ -50,6 +54,38 @@ export function useRefreshCameras() {
       qc.invalidateQueries({ queryKey: ["cameras"] });
       qc.invalidateQueries({ queryKey: ["hosts"] });
     },
+  });
+}
+
+function _invalidateCamerasHosts(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["cameras"] });
+  qc.invalidateQueries({ queryKey: ["hosts"] });
+  qc.invalidateQueries({ queryKey: ["system"] });
+}
+
+export function useReload() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: api.reloadSystem, onSuccess: () => _invalidateCamerasHosts(qc) });
+}
+
+export function useRestoreHidden() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: api.restoreHidden, onSuccess: () => _invalidateCamerasHosts(qc) });
+}
+
+export function useRestartCamera() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ prefix, id }: { prefix: string; id: string }) => api.restartCamera(prefix, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["cameras"] }),
+  });
+}
+
+export function useDeleteCamera() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ prefix, id }: { prefix: string; id: string }) => api.deleteCamera(prefix, id),
+    onSuccess: () => _invalidateCamerasHosts(qc),
   });
 }
 

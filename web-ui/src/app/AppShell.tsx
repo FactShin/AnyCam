@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { useCameras, useSystem } from "../api/hooks";
+import { useCameras, useSystem, useUpdate } from "../api/hooks";
 import { fmtBytes } from "../lib/format";
 import {
   IconFilm,
@@ -35,6 +35,16 @@ function SystemChip({ onClick }: { onClick: () => void }) {
       <span className="syschip-div" />
       <span className="syschip-stor mono">{fmtBytes(sys.media_bytes)}</span>
     </button>
+  );
+}
+
+function UpdateBanner() {
+  const upd = useUpdate().data;
+  if (!upd?.available) return null;
+  return (
+    <div className="update-banner" role="status">
+      Update available: {upd.current} → {upd.latest}. Run <code className="mono">anycam update</code> on this device.
+    </div>
   );
 }
 
@@ -84,6 +94,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
         <ConnectionBanner />
+        <UpdateBanner />
         <main className="content">{children}</main>
       </div>
 

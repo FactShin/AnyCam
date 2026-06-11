@@ -495,3 +495,12 @@ input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 
 
 /* offline reason on the camera detail header */
 .detail-error { display: block; margin-top: 2px; font-size: .78rem; color: var(--err); }
+
+/* update banner + dashboard head actions (security/QoL pass) */
+.update-banner {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 16px; background: rgba(79,140,255,0.14);
+  color: var(--accent); font-size: .85rem; border-bottom: 1px solid rgba(79,140,255,0.3);
+}
+.update-banner code { background: var(--panel-2); padding: 1px 6px; border-radius: 5px; }
+.head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }

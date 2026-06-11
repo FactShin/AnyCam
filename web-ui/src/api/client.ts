@@ -68,6 +68,17 @@ export const refreshCameras = () =>
   jsonFetch<CameraInfo[]>("/api/cameras/refresh", { method: "POST" });
 export const getHosts = () => jsonFetch<HostInfo[]>("/api/hosts");
 export const getSystem = () => jsonFetch<SystemInfo>("/api/system");
+export const getUpdate = () =>
+  jsonFetch<{ current: string; latest: string | null; available: boolean }>("/api/update");
+export const reloadSystem = () =>
+  jsonFetch<CameraInfo[]>("/api/system/reload", { method: "POST" });
+export const restoreHidden = () =>
+  jsonFetch<CameraInfo[]>("/api/cameras/restore-hidden", { method: "POST" });
+
+export const restartCamera = (prefix: string, id: string) =>
+  jsonFetch<{ ok: boolean }>(`${prefix}/api/cameras/${id}/restart`, { method: "POST" });
+export const deleteCamera = (prefix: string, id: string) =>
+  jsonFetch<{ ok: boolean }>(`${prefix}/api/cameras/${id}`, { method: "DELETE" });
 
 export const patchCamera = (prefix: string, id: string, update: CameraSettingsUpdate) =>
   jsonFetch<CameraInfo>(`${prefix}/api/cameras/${id}`, {

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { useCameras, usePatchCamera, useRecording, useSnapshot } from "../api/hooks";
+import { useCameras, useDeleteCamera, usePatchCamera, useRecording, useRestartCamera, useSnapshot } from "../api/hooks";
 import { LiveViewer } from "../components/LiveViewer";
 import { useToast } from "../components/toast";
-import { Button, ControlSlider, ScopeBadge, Segmented, Spinner, Toggle } from "../components/ui";
+import { Button, ConfirmDialog, ControlSlider, ScopeBadge, Segmented, Spinner, Toggle } from "../components/ui";
 import {
   IconCamShutter,
   IconChevL,
@@ -17,12 +17,14 @@ import {
   IconMotion,
   IconPhone,
   IconRecord,
+  IconRefresh,
   IconResolution,
   IconRotate,
   IconShrink,
   IconSliders,
   IconStop,
   IconSun,
+  IconTrash,
   IconZoom,
 } from "../icons";
 import { fmtDur } from "../lib/format";
@@ -62,10 +64,13 @@ export function CameraDetail() {
   const patch = usePatchCamera(prefix, id);
   const snap = useSnapshot(prefix, id);
   const rec = useRecording(prefix, id);
+  const restartCam = useRestartCamera();
+  const deleteCam = useDeleteCamera();
 
   const viewKey = `${host}/${id}`;
   const [view, setViewState] = useState<ViewParams>(() => loadView(viewKey));
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [fs, setFs] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const wide = useWideLayout();
@@ -118,6 +123,25 @@ export function CameraDetail() {
     }
   };
 
+  const doRestart = async () => {
+    try {
+      await restartCam.mutateAsync({ prefix, id });
+      toast.ok("Camera restarting…");
+    } catch {
+      toast.err("Restart failed");
+    }
+  };
+  const doDelete = async () => {
+    setConfirmDelete(false);
+    try {
+      await deleteCam.mutateAsync({ prefix, id });
+      toast.ok("Camera removed");
+      navigate("/");
+    } catch {
+      toast.err("Delete failed");
+    }
+  };
+
   const toggleFs = () => {
     const el = stageRef.current;
     if (!document.fullscreenElement) {
@@ -148,7 +172,16 @@ export function CameraDetail() {
 
   const busy = snap.isPending || rec.start.isPending || rec.stop.isPending;
   const controls = (
-    <ControlsPanel cam={cam} view={view} setView={setView} onPatch={onPatch} patching={patch.isPending} />
+    <ControlsPanel
+      cam={cam}
+      view={view}
+      setView={setView}
+      onPatch={onPatch}
+      patching={patch.isPending}
+      onRestart={doRestart}
+      restarting={restartCam.isPending}
+      onRequestDelete={() => setConfirmDelete(true)}
+    />
   );
 
   return (
@@ -207,6 +240,15 @@ export function CameraDetail() {
           {controls}
         </BottomSheet>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Remove this camera?"
+        confirmLabel="Remove"
+        body={`"${cam.name}" will be removed and hidden from this device. You can bring it back with "Restore hidden" on the dashboard.`}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={doDelete}
+      />
     </div>
   );
 }
@@ -217,12 +259,18 @@ function ControlsPanel({
   setView,
   onPatch,
   patching,
+  onRestart,
+  restarting,
+  onRequestDelete,
 }: {
   cam: CameraInfo;
   view: ViewParams;
   setView: (v: ViewParams) => void;
   onPatch: (u: CameraSettingsUpdate, msg?: string) => void;
   patching: boolean;
+  onRestart: () => void;
+  restarting: boolean;
+  onRequestDelete: () => void;
 }) {
   const RES = [
     { value: "640x480", label: "640×480" },
@@ -320,6 +368,21 @@ function ControlsPanel({
           </div>
         </div>
         {patching && <div className="ctl-saving mono"><Spinner size={12} /> saving…</div>}
+      </section>
+
+      <section className="ctl-sec">
+        <header className="ctl-head">
+          <div className="ctl-head-l"><IconSliders size={16} /><span>Maintenance</span></div>
+        </header>
+        <div className="ctl-row ctl-row-split">
+          <Button variant="outline" onClick={onRestart} disabled={restarting}>
+            {restarting ? <Spinner size={14} /> : <IconRefresh size={15} />} Restart feed
+          </Button>
+          <Button variant="danger" icon={<IconTrash size={15} />} onClick={onRequestDelete}>
+            Remove camera
+          </Button>
+        </div>
+        <p className="ctl-note">Restart recovers a stuck feed. Remove hides this camera from the dashboard.</p>
       </section>
     </div>
   );

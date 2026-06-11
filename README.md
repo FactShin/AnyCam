@@ -147,6 +147,23 @@ Notes & current limits:
   node that captured them). Cross-host media aggregation is planned next.
 - Linux, macOS, **and Windows** nodes all participate in the same tailnet dashboard.
 
+## Security model
+
+AnyCam's boundary is your **Tailscale network**: the server binds to `127.0.0.1` and is reached
+over your tailnet, with no per-request login. On top of that, AnyCam ships defense-in-depth:
+
+- **Cross-origin / drive-by protection** — state-changing requests (snapshot, record, delete,
+  settings) from a foreign web origin are rejected; only localhost and your tailnet (`*.ts.net`)
+  may mutate. This stops a malicious site you visit from poking your local AnyCam (CSRF / DNS
+  rebinding).
+- **Security headers** on every response — `Content-Security-Policy` (same-origin only),
+  `X-Frame-Options`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`.
+- **No SSRF amplification** — the peer reverse-proxy does not follow redirects.
+- No accounts, tokens, telemetry, or third-party calls (except checking GitHub for updates).
+
+Keep the default `127.0.0.1` bind — don't expose AnyCam directly to a public network; let
+Tailscale handle access.
+
 ## Features
 
 - **Polished dashboard (PWA)** — a responsive React web app (installable on phone or desktop) with
