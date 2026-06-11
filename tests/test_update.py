@@ -34,11 +34,11 @@ def test_latest_version_unreachable(monkeypatch):
 
 def test_update_available_logic(monkeypatch):
     monkeypatch.setattr(upd, "latest_version", lambda **kw: "99.0.0")
-    current, latest, newer = upd.update_available()
+    current, latest, newer = upd.update_available(use_cache=False)
     assert latest == "99.0.0" and newer is True
 
     monkeypatch.setattr(upd, "latest_version", lambda **kw: "0.0.1")
-    _, _, newer = upd.update_available()
+    _, _, newer = upd.update_available(use_cache=False)
     assert newer is False
 
 

@@ -14,10 +14,14 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+import time
 
 import httpx
 
 from anycam import __version__
+
+_CACHE_TTL = 3600.0  # don't hammer GitHub from the dashboard banner
+_cache: tuple[float, str | None] | None = None
 
 RAW_VERSION_URL = "https://raw.githubusercontent.com/factshin/anycam/main/src/anycam/__init__.py"
 ZIP_URL = "https://github.com/factshin/anycam/archive/refs/heads/main.zip"
@@ -41,9 +45,16 @@ def latest_version(timeout: float = 6.0) -> str | None:
         return None
 
 
-def update_available() -> tuple[str, str | None, bool]:
-    """Returns (current, latest_or_None, newer_available)."""
-    latest = latest_version()
+def update_available(use_cache: bool = True) -> tuple[str, str | None, bool]:
+    """Returns (current, latest_or_None, newer_available). Result cached 1h."""
+    global _cache
+    now = time.monotonic()
+    if use_cache and _cache and (now - _cache[0]) < _CACHE_TTL:
+        latest = _cache[1]
+    else:
+        latest = latest_version()
+        if latest is not None:  # only cache successful lookups
+            _cache = (now, latest)
     newer = latest is not None and parse_version(latest) > parse_version(__version__)
     return __version__, latest, newer
 

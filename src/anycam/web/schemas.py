@@ -89,6 +89,13 @@ class SystemInfo(BaseModel):
     access_url: str
     local_url: str
     media_bytes: int
+    hidden_count: int = 0  # cameras the user has deleted/forgotten
+
+
+class UpdateInfo(BaseModel):
+    current: str
+    latest: str | None = None
+    available: bool = False
 
 
 class OkResponse(BaseModel):

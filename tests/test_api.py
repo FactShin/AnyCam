@@ -94,3 +94,44 @@ def test_cameras_come_online_without_stream_request(client):
             break
         time.sleep(0.1)
     assert status == "online"
+
+
+def test_restart_camera(client):
+    cam_id = client.get("/api/cameras").json()[0]["id"]
+    assert client.post(f"/api/cameras/{cam_id}/restart").status_code == 200
+
+
+def test_delete_camera_hides_it(client, context):
+    cam_id = client.get("/api/cameras").json()[0]["id"]
+    assert client.delete(f"/api/cameras/{cam_id}").status_code == 200
+    # Gone from the list and recorded as hidden.
+    assert all(c["id"] != cam_id for c in client.get("/api/cameras").json())
+    assert cam_id in context.config.cameras.hidden
+    # Refresh must not bring it back…
+    client.post("/api/cameras/refresh")
+    assert all(c["id"] != cam_id for c in client.get("/api/cameras").json())
+    # …but restore-hidden does.
+    restored = client.post("/api/cameras/restore-hidden").json()
+    assert any(c["id"] == cam_id for c in restored)
+    assert context.config.cameras.hidden == []
+
+
+def test_system_reload(client):
+    assert client.post("/api/system/reload").status_code == 200
+
+
+def test_security_headers_present(client):
+    h = client.get("/api/system").headers
+    assert h["x-content-type-options"] == "nosniff"
+    assert "content-security-policy" in h
+    assert h["x-frame-options"] == "SAMEORIGIN"
+
+
+def test_cross_origin_mutation_blocked(client):
+    cam_id = client.get("/api/cameras").json()[0]["id"]
+    # A foreign Origin (drive-by / CSRF) is rejected on mutations…
+    bad = client.post(f"/api/cameras/{cam_id}/snapshot", headers={"origin": "https://evil.example"})
+    assert bad.status_code == 403
+    # …while localhost / same-origin is allowed.
+    ok = client.post(f"/api/cameras/{cam_id}/snapshot", headers={"origin": "http://localhost:8088"})
+    assert ok.status_code in (200, 503)  # 503 only if no frame yet

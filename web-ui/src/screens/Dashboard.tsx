@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 
-import { useCameras, useHosts, useRefreshCameras } from "../api/hooks";
+import { useCameras, useHosts, useRefreshCameras, useRestoreHidden, useSystem } from "../api/hooks";
 import { CameraTile } from "../components/CameraTile";
 import { Button } from "../components/ui";
 import { useToast } from "../components/toast";
@@ -12,6 +12,8 @@ export function Dashboard() {
   const navigate = useNavigate();
   const toast = useToast();
   const camerasQ = useCameras();
+  const system = useSystem().data;
+  const restoreHidden = useRestoreHidden();
   const hostsQ = useHosts();
   const refresh = useRefreshCameras();
 
@@ -81,14 +83,32 @@ export function Dashboard() {
             {camerasQ.isFetching && <span className="updating"> · updating…</span>}
           </p>
         </div>
-        <Button
-          variant="outline"
-          icon={<IconRefresh size={16} className={refresh.isPending ? "spin" : ""} />}
-          onClick={doRefresh}
-          disabled={refresh.isPending}
-        >
-          {refresh.isPending ? "Scanning…" : "Refresh devices"}
-        </Button>
+        <div className="head-actions">
+          {system && system.hidden_count > 0 && (
+            <Button
+              variant="ghost"
+              onClick={async () => {
+                try {
+                  await restoreHidden.mutateAsync();
+                  toast.ok("Hidden cameras restored");
+                } catch {
+                  toast.err("Restore failed");
+                }
+              }}
+              disabled={restoreHidden.isPending}
+            >
+              Restore hidden ({system.hidden_count})
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            icon={<IconRefresh size={16} className={refresh.isPending ? "spin" : ""} />}
+            onClick={doRefresh}
+            disabled={refresh.isPending}
+          >
+            {refresh.isPending ? "Scanning…" : "Refresh devices"}
+          </Button>
+        </div>
       </div>
 
       {cameras.length === 0 ? (

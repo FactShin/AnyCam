@@ -11,6 +11,7 @@ from anycam.camera.properties import CameraProperties
 from anycam.camera.source import CameraDescriptor
 from anycam.camera.transforms import CameraTransform
 from anycam.camera.worker import CameraStatus, CameraWorker
+from anycam.config import AppConfig
 from anycam.logging_setup import get_logger
 from anycam.persistence.models import CameraRecord
 from anycam.persistence.store import Store, now
@@ -51,15 +52,22 @@ class ManagedCamera:
 
 
 class CameraManager:
-    def __init__(self, store: Store) -> None:
+    def __init__(self, store: Store, config: AppConfig | None = None) -> None:
         self._store = store
+        self._config = config
         self._cameras: dict[str, ManagedCamera] = {}
         self._lock = threading.RLock()
+
+    def _hidden(self) -> set[str]:
+        return set(self._config.cameras.hidden) if self._config else set()
 
     def discover(self) -> list[ManagedCamera]:
         """Re-run discovery and merge with persisted settings/names."""
         with self._lock:
+            hidden = self._hidden()
             for descriptor in cam_enumerate.discover():
+                if descriptor.id in hidden:
+                    continue  # user deleted/forgot this camera
                 existing = self._cameras.get(descriptor.id)
                 if existing:
                     existing.descriptor = descriptor
@@ -109,6 +117,31 @@ class CameraManager:
             ids = list(self._cameras)
         for camera_id in ids:
             self.get_buffer(camera_id)
+
+    def restart(self, camera_id: str) -> bool:
+        """Stop and re-create a camera's capture worker (recover a stuck feed)."""
+        with self._lock:
+            cam = self._cameras.get(camera_id)
+            if cam is None:
+                return False
+            if cam.worker:
+                cam.worker.stop()
+                cam.worker = None
+        self.get_buffer(camera_id)  # lazily recreates + starts
+        return True
+
+    def remove(self, camera_id: str) -> bool:
+        """Forget a camera: stop it, drop its registry + DB record, and hide it
+        from future discovery (persisted to config)."""
+        with self._lock:
+            cam = self._cameras.pop(camera_id, None)
+            if cam and cam.worker:
+                cam.worker.stop()
+            self._store.delete_camera(camera_id)
+            if self._config is not None and camera_id not in self._config.cameras.hidden:
+                self._config.cameras.hidden.append(camera_id)
+                self._config.save()
+            return cam is not None
 
     def status(self, camera_id: str) -> CameraStatus:
         cam = self.get(camera_id)

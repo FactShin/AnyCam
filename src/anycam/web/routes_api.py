@@ -18,6 +18,7 @@ from anycam.web.schemas import (
     OkResponse,
     SystemInfo,
     TransformModel,
+    UpdateInfo,
 )
 
 router = APIRouter(prefix="/api")
@@ -81,6 +82,17 @@ async def refresh_cameras(
     return await _aggregate_cameras(ctx, scope)
 
 
+@router.post("/cameras/restore-hidden", response_model=list[CameraInfo])
+async def restore_hidden(ctx: AppContext = Depends(get_context)) -> list[CameraInfo]:
+    """Un-hide every deleted/forgotten camera and re-scan."""
+    if ctx.config.cameras.hidden:
+        ctx.config.cameras.hidden.clear()
+        ctx.config.save()
+    ctx.manager.discover()
+    ctx.manager.start_all()
+    return await _aggregate_cameras(ctx, "all")
+
+
 @router.get("/hosts", response_model=list[HostInfo])
 async def list_hosts(ctx: AppContext = Depends(get_context)) -> list[HostInfo]:
     hosts = [
@@ -141,6 +153,25 @@ def update_camera(
             ctx.disable_motion(camera_id)
 
     return _camera_info(ctx, cam)
+
+
+@router.post("/cameras/{camera_id:path}/restart", response_model=OkResponse)
+def restart_camera(camera_id: str, ctx: AppContext = Depends(get_context)) -> OkResponse:
+    """Recover a stuck feed by restarting its capture worker."""
+    if not ctx.manager.restart(camera_id):
+        raise HTTPException(status_code=404, detail="camera not found")
+    return OkResponse(detail="camera restarting")
+
+
+@router.delete("/cameras/{camera_id:path}", response_model=OkResponse)
+def delete_camera(camera_id: str, ctx: AppContext = Depends(get_context)) -> OkResponse:
+    """Forget a camera: stop it, drop its record, and hide it from discovery
+    (so phantom devices stay gone). A physically reconnected device can be
+    brought back with 'Restore hidden' / refresh."""
+    ctx.disable_motion(camera_id)
+    if not ctx.manager.remove(camera_id):
+        raise HTTPException(status_code=404, detail="camera not found")
+    return OkResponse(detail="camera removed")
 
 
 @router.post("/cameras/{camera_id:path}/snapshot", response_model=MediaCreatedResponse)
@@ -248,4 +279,27 @@ def system_info(ctx: AppContext = Depends(get_context)) -> SystemInfo:
         access_url=ctx.tailscale.access_url(port, ctx.served, ctx.config.tailscale.serve_port),
         local_url=f"http://localhost:{port}/",
         media_bytes=ctx.gallery.total_bytes(),
+        hidden_count=len(ctx.config.cameras.hidden),
     )
+
+
+@router.post("/system/reload", response_model=list[CameraInfo])
+async def system_reload(ctx: AppContext = Depends(get_context)) -> list[CameraInfo]:
+    """Re-scan devices and restart all local capture workers (no process restart)."""
+    for cam in ctx.manager.list():
+        ctx.manager.restart(cam.descriptor.id)
+    ctx.manager.discover()
+    ctx.manager.start_all()
+    await ctx.cluster.refresh(force=True)
+    return await _aggregate_cameras(ctx, "all")
+
+
+@router.get("/update", response_model=UpdateInfo)
+async def update_info(ctx: AppContext = Depends(get_context)) -> UpdateInfo:
+    """Cached check for a newer AnyCam release (for the dashboard banner)."""
+    import anyio
+
+    from anycam import update as upd
+
+    current, latest, available = await anyio.to_thread.run_sync(upd.update_available)
+    return UpdateInfo(current=current, latest=latest, available=available)

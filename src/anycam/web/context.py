@@ -24,7 +24,7 @@ class AppContext:
     def __init__(self, config: AppConfig, store: Store | None = None) -> None:
         self.config = config
         self.store = store or Store()
-        self.manager = CameraManager(self.store)
+        self.manager = CameraManager(self.store, config)
         self.snapshots = SnapshotService(self.manager, self.store)
         self.recorder = RecordingService(self.manager, self.store)
         self.gallery = MediaGallery(self.store)

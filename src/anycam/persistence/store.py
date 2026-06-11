@@ -112,6 +112,10 @@ class Store:
         with self._conn() as conn:
             conn.execute("UPDATE cameras SET name=? WHERE id=?", (name, camera_id))
 
+    def delete_camera(self, camera_id: str) -> None:
+        with self._conn() as conn:
+            conn.execute("DELETE FROM cameras WHERE id=?", (camera_id,))
+
     def set_camera_settings(self, camera_id: str, settings: dict) -> None:
         with self._conn() as conn:
             conn.execute(

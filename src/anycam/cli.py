@@ -414,7 +414,7 @@ def update(
     setup_logging("WARNING")
     from anycam import update as upd
 
-    current, latest, newer = upd.update_available()
+    current, latest, newer = upd.update_available(use_cache=False)
     if latest is None:
         typer.echo(f"Current version {current} — couldn't reach GitHub to check for updates.")
         raise typer.Exit(code=1)
